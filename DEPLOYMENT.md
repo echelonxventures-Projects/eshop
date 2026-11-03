@@ -22,6 +22,8 @@ Optional runtime settings are documented in `.env.example`.
 
 The platform exposes Prometheus-compatible metrics at `/api/metrics`; set `METRICS_TOKEN` to protect the endpoint. Requests are rate-limited by client address using `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX`. Provider webhooks are accepted at `/api/webhooks/:serviceType/:connectorKey`, require HMAC signatures by default, and are deduplicated by event ID before entering the durable event/outbox pipeline.
 
+Catalog search is available at `/api/catalog/search?q=...` and uses a portal-configured search connector when available, with the PostgreSQL full-text/local catalog fallback otherwise. Recommendations use the same pattern at `/api/recommendations`. Authenticated clients can publish product and business telemetry through `/api/analytics/events`; these events are persisted and dispatched through the platform event/outbox pipeline.
+
 ## Build and migrate
 
 ```bash

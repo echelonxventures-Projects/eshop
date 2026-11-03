@@ -30,3 +30,7 @@ export async function execute({connector, context, payload}) {
 export async function createIntent(input) { return execute({connector:input.connector, context:input.context, payload:{operation:'createIntent',...input}}); }
 export async function getQuotes(input) { return execute({connector:input.connector, context:input.context, payload:{operation:'getQuotes',...input}}); }
 export async function test(input) { return execute({connector:input.connector, context:input.context, payload:{operation:'test',...input}}); }
+export async function search(input) { return execute({connector:input.connector, context:input.context, payload:{operation:'search',...input}}); }
+export async function recommend(input) { return execute({connector:input.connector, context:input.context, payload:{operation:'recommend',...input}}); }
+export async function sendNotification(input) { return execute({connector:input.connector, context:input.context, payload:{operation:'sendNotification',...input}}); }
+export async function webhook(input) { return execute({connector:input.connector, context:input.context, payload:{operation:'webhook',...input}}); }

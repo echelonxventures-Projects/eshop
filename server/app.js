@@ -21,7 +21,7 @@ import {publishEvent} from './events.js';
 import {saveConnectorSecret} from './secrets.js';
 import {createCatalogProduct, listOffers, listProductTypes, updateCatalogProduct} from './catalog.js';
 import {createExchange, createOffer, createVariant, listExchanges, listOffersWithBuyBox, listVariants, resolveCommercePolicy, transitionExchange, updateOffer, updateVariant} from './commerce.js';
-import {metricsMiddleware, metricsText} from './observability.js';
+import {metricsMiddleware, metricsText, sloSnapshot} from './observability.js';
 import {createRateLimiter} from './rate-limit.js';
 import {acceptWebhook} from './webhooks.js';
 
@@ -47,6 +47,10 @@ app.get('/api/metrics', (req, res) => {
   if (config.metricsToken && req.get('authorization') !== `Bearer ${config.metricsToken}`) return res.status(401).type('text/plain').send('Unauthorized\n');
   res.type('text/plain').send(metricsText());
 });
+app.get('/api/health/slo', (req, res) => {
+  if (config.metricsToken && req.get('authorization') !== `Bearer ${config.metricsToken}`) return res.status(401).json({error:{code:'unauthorized',message:'Metrics authorization required'}});
+  res.json({data:sloSnapshot(Number(req.query.windowMs || 300000))});
+});
 app.get('/api/ready', asyncRoute(async (_req, res) => {
   try {
     await health();
@@ -63,6 +67,38 @@ app.post('/api/webhooks/:serviceType/:key', asyncRoute(async (req, res) => {
   const connector = await resolveConnector(req.context, req.params.serviceType, req.params.key);
   const result = await acceptWebhook({connector, context:req.context, req});
   res.status(result.duplicate ? 200 : 202).json({data:{accepted:true,...result}});
+}));
+
+app.post('/api/analytics/events', requireAuth, asyncRoute(async (req, res) => {
+  requireBody(req.body, ['type']);
+  if (!/^analytics\.[a-z][a-z0-9_.-]{1,80}$/.test(req.body.type)) throw new HttpError(400, 'Analytics event types must use the analytics.* namespace', 'invalid_analytics_event');
+  const event = await publishEvent({type:req.body.type,source:'marketly:web',subject:req.body.subject || req.user.sub,data:req.body.data || {},context:req.context,correlationId:req.header('x-correlation-id')});
+  res.status(202).json({data:{eventId:event.envelope.id,accepted:true}});
+}));
+
+app.get('/api/catalog/search', asyncRoute(async (req, res) => {
+  requireBody(req.query, ['q']);
+  const q = String(req.query.q).trim().slice(0, 120);
+  if (!q) throw new HttpError(400, 'Search query cannot be empty', 'invalid_search_query');
+  try {
+    const connector = await resolveConnector(req.context, 'search', req.query.connectorKey);
+    const provider = await executeConnector({connector,operation:'search',context:req.context,payload:{query:q,filters:req.query}});
+    return res.json({data:provider,source:'provider',connector:connector.connector_key});
+  } catch (error) {
+    if (error.code !== 'connector_unavailable') throw error;
+  }
+  const {page,pageSize,offset} = pageParams(req.query);
+  const values = [req.context.tenantId,req.context.universeId,`%${q}%`,pageSize,offset];
+  const result = await query(`select p.id,p.product_type_key as "typeKey",p.sku,p.slug,p.title,p.description,p.media,p.attributes,p.price,p.currency,p.compare_at_price as "compareAtPrice",p.rating,p.review_count as "reviewCount",ts_rank(to_tsvector('simple',p.title || ' ' || p.description),websearch_to_tsquery('simple',$3)) as "relevance" from products p where p.tenant_id = $1 and p.universe_id = $2 and p.status = 'active' and (to_tsvector('simple',p.title || ' ' || p.description) @@ websearch_to_tsquery('simple',$3) or p.title ilike $3 or p.description ilike $3) order by "relevance" desc,p.rating desc,p.created_at desc limit $4 offset $5`, values);
+  res.json({data:result.rows.map(productResponse),source:'local',pagination:{page,pageSize}});
+}));
+
+app.get('/api/recommendations', asyncRoute(async (req, res) => {
+  const connector = await resolveConnector(req.context, 'recommendations', req.query.connectorKey).catch(error => {if (error.code === 'connector_unavailable') return null; throw error;});
+  if (connector) { const provider = await executeConnector({connector,operation:'recommend',context:req.context,payload:{userId:req.user?.sub || null,productId:req.query.productId || null,limit:Number(req.query.limit || 12)}}); return res.json({data:provider,source:'provider',connector:connector.connector_key}); }
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit || 12)));
+  const result = await query(`select p.id,p.product_type_key as "typeKey",p.sku,p.slug,p.title,p.description,p.media,p.attributes,p.price,p.currency,p.compare_at_price as "compareAtPrice",p.rating,p.review_count as "reviewCount" from products p where p.tenant_id = $1 and p.universe_id = $2 and p.status = 'active' order by p.rating desc,p.review_count desc,p.created_at desc limit $3`, [req.context.tenantId,req.context.universeId,limit]);
+  res.json({data:result.rows.map(productResponse),source:'catalog'});
 }));
 
 function publicUser(user) { return {id:user.id, email:user.email, firstName:user.first_name, lastName:user.last_name, role:user.role}; }
@@ -170,6 +206,16 @@ app.get('/api/me', requireAuth, asyncRoute(async (req, res) => {
   const result = await query(`select u.id, u.email, u.first_name, u.last_name, coalesce(tm.role, u.role) as role, tm.permissions from users u join tenant_memberships tm on tm.user_id = u.id and tm.tenant_id = $1 where u.id = $2`, [req.context.tenantId, req.user.sub]);
   if (!result.rowCount) throw new HttpError(404, 'Account was not found', 'user_not_found');
   res.json({data:{...publicUser(result.rows[0]), permissions:result.rows[0].permissions || [], context:req.context}});
+}));
+
+app.get('/api/me/export', requireAuth, asyncRoute(async (req, res) => {
+  const [user, addresses, orders, reviews] = await Promise.all([
+    query(`select id,email,first_name as "firstName",last_name as "lastName",role,status,metadata,created_at as "createdAt" from users where id = $1`, [req.user.sub]),
+    query(`select id,label,recipient,address,is_default as "isDefault",created_at as "createdAt" from addresses where tenant_id = $1 and user_id = $2 order by created_at`, [req.context.tenantId,req.user.sub]),
+    query(`select id,order_number as "orderNumber",status,currency,subtotal,tax,shipping,total,shipping_address as "shippingAddress",billing_address as "billingAddress",created_at as "createdAt" from orders where tenant_id = $1 and user_id = $2 order by created_at`, [req.context.tenantId,req.user.sub]),
+    query(`select id,product_id as "productId",rating,title,body,status,created_at as "createdAt" from reviews where tenant_id = $1 and user_id = $2 order by created_at`, [req.context.tenantId,req.user.sub])
+  ]);
+  res.json({data:{exportedAt:new Date().toISOString(),user:user.rows[0] || null,addresses:addresses.rows,orders:orders.rows,reviews:reviews.rows}});
 }));
 
 app.get('/api/addresses', requireAuth, asyncRoute(async (req, res) => {
@@ -528,6 +574,12 @@ app.post('/api/seller/onboarding', requireAuth, asyncRoute(async (req, res) => {
 app.get('/api/admin/feature-flags', requireAuth, requireRole('admin','owner'), asyncRoute(async (req, res) => {
   const result = await query(`select key,enabled,config,effective_from as "effectiveFrom",effective_until as "effectiveUntil" from feature_flags where tenant_id = $1 and (universe_id = $2 or universe_id is null) order by key`, [req.context.tenantId, req.context.universeId]);
   res.json({data:result.rows});
+}));
+
+app.get('/api/admin/audit-events', requireAuth, requireRole('admin','owner'), asyncRoute(async (req, res) => {
+  const {page,pageSize,offset} = pageParams(req.query, {page:1,pageSize:50,maxPageSize:200});
+  const result = await query(`select id,actor_id as "actorId",action,resource_type as "resourceType",resource_id as "resourceId",metadata,created_at as "createdAt" from audit_events where tenant_id = $1 order by created_at desc limit $2 offset $3`, [req.context.tenantId,pageSize,offset]);
+  res.json({data:result.rows,pagination:{page,pageSize}});
 }));
 
 app.get('/api/admin/connectors/:serviceType', requireAuth, requireRole('admin','owner'), asyncRoute(async (req, res) => {
