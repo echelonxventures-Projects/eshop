@@ -1,0 +1,40 @@
+name: platform-checks
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: marketly
+          POSTGRES_USER: marketly
+          POSTGRES_PASSWORD: marketly
+        ports:
+          - 55433:5432
+        options: >-
+          --health-cmd "pg_isready -U marketly -d marketly"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      DATABASE_URL: postgres://marketly:marketly@127.0.0.1:55433/marketly
+      JWT_SECRET: ci-only-secret-that-is-long-enough
+      CORS_ORIGIN: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run db:migrate
+      - run: npm run db:seed
+      - run: npm run check:server
+      - run: npm run test:kernel
+      - run: npm run test:e2e
+      - run: npm run build

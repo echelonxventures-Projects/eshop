@@ -1,0 +1,114 @@
+{
+  "platform": {
+    "name": "Marketly",
+    "defaultTenant": "us",
+    "defaultUniverse": "consumer",
+    "defaultLocale": "en-US",
+    "defaultCurrency": "USD",
+    "supportedTenantIds": ["us", "gb", "in"]
+  },
+  "tenants": [
+    {"id":"us","label":"United States","region":"NA","defaultCurrency":"USD","locales":["en-US","es-US"],"universes":["consumer","business"]},
+    {"id":"gb","label":"United Kingdom","region":"EU","defaultCurrency":"GBP","locales":["en-GB"],"universes":["consumer","business"]},
+    {"id":"in","label":"India","region":"APAC","defaultCurrency":"INR","locales":["en-IN","hi-IN"],"universes":["consumer","business"]}
+  ],
+  "universes": [
+    {"id":"consumer","label":"Personal shopping","description":"Everyday products for you and your home"},
+    {"id":"business","label":"Business shopping","description":"Procurement, invoices, and multi-user buying"}
+  ],
+  "currencies": [
+    {"id":"USD","label":"USD · $","locale":"en-US","rateFromUsd":1},
+    {"id":"GBP","label":"GBP · £","locale":"en-GB","rateFromUsd":0.79},
+    {"id":"EUR","label":"EUR · €","locale":"de-DE","rateFromUsd":0.92},
+    {"id":"INR","label":"INR · ₹","locale":"en-IN","rateFromUsd":83.1},
+    {"id":"JPY","label":"JPY · ¥","locale":"ja-JP","rateFromUsd":151.4}
+  ],
+  "locales": [
+    {"id":"en-US","label":"English (US)","translations":{"deliverTo":"Deliver to","search":"Search for anything","account":"Account & lists","orders":"& orders","cart":"Cart","deals":"Today's deals","departments":"Departments","recommendations":"New & trending","startExploring":"Start exploring","pickedFor":"Picked for your world","freeDelivery":"Free delivery"}},
+    {"id":"en-GB","label":"English (UK)","translations":{"deliverTo":"Deliver to","search":"Search for anything","account":"Account & lists","orders":"& orders","cart":"Basket","deals":"Today's deals","departments":"Departments","recommendations":"New & trending","startExploring":"Start exploring","pickedFor":"Picked for your world","freeDelivery":"Free delivery"}},
+    {"id":"en-IN","label":"English (India)","translations":{"deliverTo":"Deliver to","search":"Search for anything","account":"Account & lists","orders":"& orders","cart":"Cart","deals":"Today's deals","departments":"Departments","recommendations":"New & trending","startExploring":"Start exploring","pickedFor":"Picked for your world","freeDelivery":"Free delivery"}},
+    {"id":"es-US","label":"Español (US)","translations":{"deliverTo":"Enviar a","search":"Buscar productos","account":"Cuenta y listas","orders":"y pedidos","cart":"Carrito","deals":"Ofertas de hoy","departments":"Departamentos","recommendations":"Novedades","startExploring":"Empezar a explorar","pickedFor":"Elegido para ti","freeDelivery":"Envío gratis"}},
+    {"id":"hi-IN","label":"हिन्दी (भारत)","translations":{"deliverTo":"यहाँ डिलीवर करें","search":"उत्पाद खोजें","account":"खाता और सूचियाँ","orders":"और ऑर्डर","cart":"कार्ट","deals":"आज के ऑफ़र","departments":"विभाग","recommendations":"नया और ट्रेंडिंग","startExploring":"खोजना शुरू करें","pickedFor":"आपके लिए चुना गया","freeDelivery":"मुफ़्त डिलीवरी"}}
+  ],
+  "featureModules": ["identity","catalog","search","recommendations","cart","checkout","payments","orders","returns","reviews","subscriptions","marketplace","seller-portal","business-procurement","ads","support","notifications","fraud","analytics","localization","multi-currency"],
+  "extensionPoints": {
+    "paymentConnectors": {"configurationSource":"database", "adapterContract":"PaymentConnector", "selection":"tenant-universe-currency-priority"},
+    "taxEngines": {"configurationSource":"database", "adapterContract":"TaxEngine", "selection":"tenant-region-priority"},
+    "shippingCarriers": {"configurationSource":"database", "adapterContract":"ShippingCarrier", "selection":"tenant-region-capability"},
+    "searchProviders": {"configurationSource":"database", "adapterContract":"SearchProvider", "selection":"tenant-universe-priority"},
+    "recommendationProviders": {"configurationSource":"database", "adapterContract":"RecommendationProvider", "selection":"tenant-universe-channel"}
+  },
+  "connectorServiceTypes": ["payment","logistics","tax","search","recommendations","fraud","identity","notifications","media","analytics","support","pricing","translation","returns","fulfillment"],
+  "moduleDefinitions": [
+    {"key":"wallet","displayName":"Wallet","labels":{"singular":"Wallet","balance":"Balance","add":"Add funds","send":"Send"},"capabilities":{"accounts":true,"ledger":true,"conversion":true},"entities":["wallet_account","wallet_transaction"],"units":["USD","GBP","EUR","INR","JPY"],"conversions":[{"fromUnit":"USD","toUnit":"GBP","rate":0.79},{"fromUnit":"USD","toUnit":"EUR","rate":0.92},{"fromUnit":"USD","toUnit":"INR","rate":83.1},{"fromUnit":"USD","toUnit":"JPY","rate":151.4}],"config":{"ledger":"double_entry_required"}},
+    {"key":"fresh","displayName":"Fresh","labels":{"singular":"Fresh","delivery":"Fresh delivery","slot":"Delivery slot"},"capabilities":{"catalog":true,"inventory":true,"deliverySlots":true,"substitutions":true},"entities":["fresh_product","fresh_order","delivery_slot"],"units":[],"config":{"perishable":true}},
+    {"key":"bazaar","displayName":"Bazaar","labels":{"singular":"Bazaar","seller":"Seller","marketplace":"Marketplace"},"capabilities":{"catalog":true,"marketplace":true,"sellerPayouts":true,"reviews":true},"entities":["seller","listing","offer","payout"],"units":[],"config":{"commissionPolicy":"configured"}},
+    {"key":"travel","displayName":"Travel","labels":{"singular":"Travel","search":"Search trips","booking":"Booking","ticket":"Ticket"},"capabilities":{"search":true,"booking":true,"cancellation":true,"supplierInventory":true},"entities":["traveler","itinerary","booking","ticket"],"units":[],"config":{"supplierRouting":"registry"}},
+    {"key":"pharmacy","displayName":"Pharmacy","labels":{"singular":"Pharmacy","prescription":"Prescription","pharmacist":"Pharmacist"},"capabilities":{"catalog":true,"prescriptions":true,"pharmacistReview":true,"regulatedDelivery":true},"entities":["medicine","prescription","pharmacist_review","pharmacy_order"],"units":[],"config":{"compliance":"configured"}},
+    {"key":"products_services","displayName":"Products & services","labels":{"singular":"Products & services","service":"Service","provider":"Provider"},"capabilities":{"catalog":true,"booking":true,"subscriptions":true,"marketplace":true},"entities":["product","service","provider","subscription"],"units":[],"config":{}}
+  ],
+  "productTypes": [
+    {"key":"physical","displayName":"Physical product","fulfillmentModes":["platform","seller","pickup","delivery"],"capabilities":{"inventory":true,"shipping":true,"returns":true},"schema":{"type":"object","required":[]}},
+    {"key":"digital","displayName":"Digital product","fulfillmentModes":["download","stream"],"capabilities":{"digitalDelivery":true,"entitlements":true},"schema":{"type":"object","required":[]}},
+    {"key":"service","displayName":"Service","fulfillmentModes":["appointment","onsite","remote"],"capabilities":{"booking":true,"provider":true},"schema":{"type":"object","required":[]}},
+    {"key":"subscription","displayName":"Subscription","fulfillmentModes":["recurring_delivery","digital_access","membership"],"capabilities":{"recurringBilling":true,"pause":true,"cancel":true},"schema":{"type":"object","required":["plan"]}},
+    {"key":"bundle","displayName":"Bundle","fulfillmentModes":["platform","seller","delivery"],"capabilities":{"components":true,"inventory":true},"schema":{"type":"object","required":["components"]}},
+    {"key":"rental","displayName":"Rental","fulfillmentModes":["delivery","pickup"],"capabilities":{"availability":true,"deposit":true,"returns":true},"schema":{"type":"object","required":["rentalPeriod"]}},
+    {"key":"bookable","displayName":"Bookable inventory","fulfillmentModes":["appointment","ticket","reservation"],"capabilities":{"availability":true,"booking":true,"cancellation":true},"schema":{"type":"object","required":["bookingConfig"]}},
+    {"key":"perishable","displayName":"Perishable product","fulfillmentModes":["delivery","pickup"],"capabilities":{"lotTracking":true,"expiry":true,"substitution":true},"schema":{"type":"object","required":["storageRequirements"]}},
+    {"key":"regulated","displayName":"Regulated product","fulfillmentModes":["delivery","pickup"],"capabilities":{"compliance":true,"verification":true,"restrictedDelivery":true},"schema":{"type":"object","required":["complianceProfile"]}},
+    {"key":"marketplace","displayName":"Marketplace offer","fulfillmentModes":["seller","platform","delivery"],"capabilities":{"seller":true,"commission":true,"payout":true},"schema":{"type":"object","required":["sellerProfile"]}}
+  ],
+  "topology": {"routing":"tenant-universe-shard","dataPlaneAdapters":["postgres","read-replica","search-index","object-storage","event-stream"],"migration":"effective-dated-route"},
+  "extensionContract": {
+    "futureCapabilityRegistration": {"required":["module","entities","relationships","commands","stateMachines","policies","workflows","connectors","experience"],"reload":"runtime"},
+    "genericAdapters":[{"key":"http-json","module":"http-json.js","protocol":"HTTP/JSON","configurationOnly":true}],
+    "customAdapters":{"installation":"runtime package or adapter directory","rebuildRequired":false,"contract":"service connector operation contract"},
+    "dataContract":{"schema":"JSON Schema","events":"CloudEvents-compatible envelope","commands":"idempotent command contract","workflow":"Temporal workflow registry"}
+  },
+  "entityDefinitions": [
+    {"key":"customer_profile","displayName":"Customer profile","schema":{"type":"object","required":["displayName"],"properties":{"displayName":{"type":"string"},"preferences":{"type":"object"}}},"capabilities":{"auditable":true,"versioned":true}},
+    {"key":"support_case","displayName":"Support case","schema":{"type":"object","required":["subject","status"],"properties":{"subject":{"type":"string"},"status":{"type":"string"},"priority":{"type":"string"},"details":{"type":"object"}}},"capabilities":{"auditable":true,"workflowDriven":true}},
+    {"key":"subscription","displayName":"Subscription","schema":{"type":"object","required":["plan","status"],"properties":{"plan":{"type":"string","minLength":1},"status":{"type":"string","enum":["active","paused","cancelled"]},"interval":{"type":"string"},"nextBillingAt":{"type":"string"}}},"capabilities":{"auditable":true,"workflowDriven":true,"recurringBilling":true}},
+    {"key":"fulfillment_case","displayName":"Fulfillment case","schema":{"type":"object","required":["orderId","status"],"properties":{"orderId":{"type":"string","minLength":1},"status":{"type":"string"},"carrier":{"type":"string"},"trackingNumber":{"type":"string"}}},"capabilities":{"auditable":true,"workflowDriven":true}}
+  ],
+  "relationshipDefinitions": [
+    {"key":"customer_support_case","sourceEntityKey":"customer_profile","targetEntityKey":"support_case","cardinality":"one_to_many"}
+  ],
+  "stateMachineDefinitions": [
+    {"key":"support_case","initialState":"open","states":{"open":{},"in_progress":{},"resolved":{},"closed":{}},"transitions":{"open":{"start":"in_progress"},"in_progress":{"resolve":"resolved"},"resolved":{"close":"closed","reopen":"open"}}},
+    {"key":"subscription","initialState":"active","states":{"active":{},"paused":{},"cancelled":{}},"transitions":{"active":{"pause":"paused","cancel":"cancelled"},"paused":{"resume":"active","cancel":"cancelled"},"cancelled":{}}},
+    {"key":"fulfillment_case","initialState":"pending","states":{"pending":{},"label_created":{},"in_transit":{},"delivered":{},"exception":{}},"transitions":{"pending":{"create_label":"label_created"},"label_created":{"ship":"in_transit","exception":"exception"},"in_transit":{"deliver":"delivered","exception":"exception"},"exception":{"retry":"pending"},"delivered":{}}}
+  ],
+  "commandDefinitions": [
+    {"key":"customer_profile.create","entityTypeKey":"customer_profile","operation":"entity.create","initialState":"active","inputSchema":{"type":"object","required":["data"],"properties":{"data":{"type":"object"},"externalKey":{"type":"string"}}}},
+    {"key":"support_case.create","entityTypeKey":"support_case","operation":"entity.create","initialState":"open","inputSchema":{"type":"object","required":["data"],"properties":{"data":{"type":"object"},"externalKey":{"type":"string"}}}},
+    {"key":"support_case.transition","entityTypeKey":"support_case","operation":"state.transition","inputSchema":{"type":"object","required":["entityId","stateMachineKey","fromState","event"],"properties":{"entityId":{"type":"string"},"stateMachineKey":{"type":"string"},"fromState":{"type":"string"},"event":{"type":"string"}}}},
+    {"key":"subscription.create","entityTypeKey":"subscription","operation":"entity.create","initialState":"active","inputSchema":{"type":"object","required":["data"],"properties":{"data":{"type":"object"}}}},
+    {"key":"subscription.transition","entityTypeKey":"subscription","operation":"state.transition","inputSchema":{"type":"object","required":["entityId","stateMachineKey","fromState","event"],"properties":{"entityId":{"type":"string"},"stateMachineKey":{"type":"string"},"fromState":{"type":"string"},"event":{"type":"string"}}}},
+    {"key":"fulfillment_case.create","entityTypeKey":"fulfillment_case","operation":"entity.create","initialState":"pending","inputSchema":{"type":"object","required":["data"],"properties":{"data":{"type":"object"}}}}
+  ],
+  "defaults": {
+    "experience": {
+      "default": {
+        "branding":{"name":"Marketly","shortName":"M","tagline":"Your everyday, upgraded","logoUrl":"","faviconUrl":"","primaryColor":"#f26b4f","accentColor":"#a8ddd3","darkColor":"#111d2e","surfaceColor":"#f7f5f0","fontFamily":"DM Sans","displayFontFamily":"Playfair Display"},
+        "content":{"announcement":"Holiday delivery: order by 8pm for next-day delivery in select areas","heroEyebrow":"THE BETTER WAY TO SHOP","heroTitle":"Good things find you.","heroDescription":"Thoughtfully selected products, fair prices, and a little joy in every delivery.","footerTagline":"Making everyday shopping feel a little more human."},
+        "navigation":{"showDeals":true,"showDepartments":true,"showRecommendations":true,"showMembership":true,"showSellerTools":true,"links":[]},
+        "legal":{"companyName":"Marketly, Inc.","privacyLabel":"Privacy","termsLabel":"Terms","accessibilityLabel":"Accessibility"},
+        "modules":{"wallet":{"enabled":true,"displayName":"Wallet"},"fresh":{"enabled":true,"displayName":"Fresh"},"bazaar":{"enabled":true,"displayName":"Bazaar"},"travel":{"enabled":true,"displayName":"Travel"},"pharmacy":{"enabled":true,"displayName":"Pharmacy"},"products_services":{"enabled":true,"displayName":"Products & services"}}
+      }
+    },
+    "context": {"tenant":"us","universe":"consumer","locale":"en-US","currency":"USD","channel":"web"},
+    "pagination": {"defaults":{"page":1,"pageSize":24,"maxPageSize":100}},
+    "outbox": {"retry":{"maxAttempts":10,"retryDelaySeconds":30,"maxErrorLength":1000}},
+    "identity": {"passwordPolicy":{"minLength":10}},
+    "cart": {"limits":{"maxQuantityPerLine":999}},
+    "checkout": {"pricing":{"serviceType":"payment","shippingServiceType":"logistics","taxServiceType":"tax","freeShippingThreshold":35,"defaultShippingFee":5.99,"idempotencyWindowHours":24}}
+  },
+  "workflowContracts": [
+    {"id":"order.lifecycle","temporalWorkflow":"OrderLifecycleWorkflow","taskQueue":"orders","triggerEvents":["order.created","order.cancel_requested","return.requested"],"signals":["payment-authorized","shipment-updated","return-requested","cancel-requested"]},
+    {"id":"inventory.reservation","temporalWorkflow":"InventoryReservationWorkflow","taskQueue":"inventory","triggerEvents":["inventory.reserve","inventory.release","inventory.reconcile"],"signals":["reserve","release","reconcile"]},
+    {"id":"seller.onboarding","temporalWorkflow":"SellerOnboardingWorkflow","taskQueue":"seller-compliance","triggerEvents":["seller.onboarding"],"signals":["document-approved","document-rejected"]},
+    {"id":"subscription.renewal","temporalWorkflow":"SubscriptionRenewalWorkflow","taskQueue":"billing","triggerEvents":["subscription.renewal"],"signals":["renew","pause","cancel"]}
+  ]
+}

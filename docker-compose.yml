@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: marketly-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: marketly
+      POSTGRES_USER: marketly
+      POSTGRES_PASSWORD: marketly
+    ports:
+      - "55433:5432"
+    volumes:
+      - marketly-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U marketly -d marketly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  marketly-postgres-data:

@@ -1,0 +1,1 @@
+:root{--body-font:'DM Sans',sans-serif;--display-font:'Playfair Display',serif}body{font-family:var(--body-font)}.hero h1,.section h2,.newsletter h2,.membership h2,.drawer-header h2,.empty-cart h3,.modal-product-copy h2{font-family:var(--display-font)}

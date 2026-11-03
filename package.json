@@ -1,0 +1,33 @@
+{
+  "name": "marketly-storefront",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server/index.js",
+    "server": "node server/index.js",
+    "server:dev": "node --watch server/index.js",
+    "db:migrate": "node server/migrate.js",
+    "db:seed": "node server/seed.js",
+    "worker:outbox": "node server/workers/outbox-dispatcher.js",
+    "test:kernel": "node --test server/kernel.test.js server/capabilities.test.js",
+    "test:e2e": "node --test server/e2e.test.js",
+    "check:server": "find server -name '*.js' -print0 | xargs -0 -n1 node --check"
+  },
+  "devDependencies": {
+    "vite": "latest"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "@temporalio/client": "^1.13.1",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3"
+  }
+}

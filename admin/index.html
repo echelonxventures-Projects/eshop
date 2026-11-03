@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Marketly Admin · Platform Control Center</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/admin/admin.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header><div><span class="eyebrow">MARKETLY PLATFORM</span><h1>Platform control center</h1><p>Configure providers, storage models, and custom resources without deploying code.</p></div><span class="status" id="status">Signed out</span></header>
+      <section class="panel" id="login-panel"><h2>Admin sign in</h2><form id="login-form"><label>Email<input name="email" type="email" required /></label><label>Password<input name="password" type="password" required /></label><button>Sign in</button></form><p class="hint">The account must have an admin or owner role in the selected tenant.</p></section>
+      <section class="panel hidden" id="provider-panel"><div class="toolbar"><div><h2>Service providers</h2><p class="hint">Credentials are encrypted at rest and never returned by the API.</p></div><button class="secondary" id="sign-out">Sign out</button></div><div id="providers" class="providers"></div><h2 class="form-title">Add or update provider</h2><form id="provider-form"><div class="grid"><label>Service type<select name="serviceType"><option>payment</option><option>tax</option><option>logistics</option><option>fulfillment</option><option>search</option><option>fraud</option><option>notifications</option><option>recommendations</option></select></label><label>Provider key<input name="key" placeholder="stripe-live" required /></label><label>Adapter<select name="adapterModule"><option value="http-json.js">HTTP/JSON</option><option value="test-payment.js">Test payment</option><option value="test-commerce.js">Test commerce</option></select></label><label>Base URL<input name="baseUrl" type="url" placeholder="https://api.provider.com" required /></label><label>API key<input name="apiKey" type="password" autocomplete="new-password" placeholder="Stored encrypted; leave blank to keep current" /></label><label>Priority<input name="priority" type="number" value="100" min="1" /></label><label>Regions<input name="regions" value="NA" placeholder="NA,EU" /></label><label>Countries<input name="countryCodes" value="US" placeholder="US,GB" /></label><label>Auth header<input name="authHeader" value="authorization" /></label><label>Auth prefix<input name="authPrefix" value="Bearer " /></label></div><label>Operations JSON<textarea name="operations" rows="10" required>{"test":{"method":"GET","path":"/health","response":{"ok":true}}}</textarea></label><label class="check"><input name="enabled" type="checkbox" checked /> Activate provider after saving</label><div class="actions"><button>Save encrypted provider</button><button type="button" class="secondary" id="test-provider">Test saved provider</button></div></form><pre id="output"></pre></section>
+    </main>
+    <script type="module" src="/admin/admin.js"></script>
+  </body>
+</html>
