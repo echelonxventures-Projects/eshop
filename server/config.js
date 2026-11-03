@@ -19,7 +19,12 @@ export const config = {
   providerEncryptionKey: process.env.PROVIDER_ENCRYPTION_KEY || 'development-provider-encryption-key',
   storageAdapter: process.env.STORAGE_ADAPTER || 'postgres',
   storageAdapterModule: process.env.STORAGE_ADAPTER_MODULE || '',
-  storageFilePath: process.env.STORAGE_FILE_PATH || ''
+  storageFilePath: process.env.STORAGE_FILE_PATH || '',
+  bodyLimit: process.env.BODY_LIMIT || '1mb',
+  rateLimitWindowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60000),
+  rateLimitMax: Number(process.env.RATE_LIMIT_MAX || 300),
+  metricsToken: process.env.METRICS_TOKEN || '',
+  trustProxy: process.env.TRUST_PROXY === 'true'
 };
 
 export function assertProductionConfig() {

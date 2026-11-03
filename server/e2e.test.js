@@ -73,7 +73,7 @@ test('customer completes registered checkout flow', async () => {
   const shipments = await request(`/api/orders/${order.data.id}/shipments`, {headers:bearer});
   assert.equal(shipments.data.length, 1);
   const orders = await request('/api/orders', {headers:bearer});
-  assert.equal(orders.data[0].status, 'paid');
+  assert.equal(orders.data[0].status, 'processing');
   await query(`update orders set status = 'delivered' where id = $1`, [order.data.id]);
   const exchange = await request(`/api/orders/${order.data.id}/exchanges`, {method:'POST',headers:bearer,body:JSON.stringify({reason:'changed_mind',items:[{productId:product.id,quantity:1}],replacementItems:[{productId:sellerProduct.data.id,variantId:variant.data.id,quantity:1}]})});
   assert.equal(exchange.data.status, 'requested');

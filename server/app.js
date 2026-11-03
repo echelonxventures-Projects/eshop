@@ -21,21 +21,32 @@ import {publishEvent} from './events.js';
 import {saveConnectorSecret} from './secrets.js';
 import {createCatalogProduct, listOffers, listProductTypes, updateCatalogProduct} from './catalog.js';
 import {createExchange, createOffer, createVariant, listExchanges, listOffersWithBuyBox, listVariants, resolveCommercePolicy, transitionExchange, updateOffer, updateVariant} from './commerce.js';
+import {metricsMiddleware, metricsText} from './observability.js';
+import {createRateLimiter} from './rate-limit.js';
+import {acceptWebhook} from './webhooks.js';
 
 const app = express();
 const here = path.dirname(fileURLToPath(import.meta.url));
 const platformConfig = JSON.parse(fs.readFileSync(path.join(here, '..', 'platform-config.json'), 'utf8'));
 
+app.set('trust proxy', config.trustProxy);
 app.use(helmet({crossOriginResourcePolicy:false}));
 app.use(cors({origin:config.corsOrigin, credentials:true}));
-app.use(express.json({limit:'1mb'}));
+app.use(express.json({limit:config.bodyLimit, verify:(req, _res, buffer) => {req.rawBody = Buffer.from(buffer);}}));
 app.use((req, res, next) => {req.requestId = crypto.randomUUID();res.setHeader('x-request-id', req.requestId);next();});
+app.use(metricsMiddleware);
+const limiter = createRateLimiter({windowMs:config.rateLimitWindowMs, max:config.rateLimitMax, key:req => req.ip || req.socket.remoteAddress || 'unknown'});
+app.use((req, res, next) => ['/api/live','/api/health','/api/ready','/api/metrics'].includes(req.path) ? next() : limiter(req, res, next));
 
 app.get('/api/health', asyncRoute(async (_req, res) => {
   await health();
   res.json({ok:true, service:'marketly-api', version:'1.0.0', time:new Date().toISOString()});
 }));
 app.get('/api/live', (_req, res) => res.json({ok:true, service:'marketly-api'}));
+app.get('/api/metrics', (req, res) => {
+  if (config.metricsToken && req.get('authorization') !== `Bearer ${config.metricsToken}`) return res.status(401).type('text/plain').send('Unauthorized\n');
+  res.type('text/plain').send(metricsText());
+});
 app.get('/api/ready', asyncRoute(async (_req, res) => {
   try {
     await health();
@@ -47,6 +58,12 @@ app.get('/api/ready', asyncRoute(async (_req, res) => {
 
 app.get('/api/config', (_req, res) => res.json({platform:platformConfig.platform, tenants:platformConfig.tenants, universes:platformConfig.universes, locales:platformConfig.locales.map(({id,label}) => ({id,label})), currencies:platformConfig.currencies.map(({id,label}) => ({id,label})), extensionPoints:platformConfig.extensionPoints, defaults:publicRuntimeConfig()}));
 app.use('/api', resolveContext);
+
+app.post('/api/webhooks/:serviceType/:key', asyncRoute(async (req, res) => {
+  const connector = await resolveConnector(req.context, req.params.serviceType, req.params.key);
+  const result = await acceptWebhook({connector, context:req.context, req});
+  res.status(result.duplicate ? 200 : 202).json({data:{accepted:true,...result}});
+}));
 
 function publicUser(user) { return {id:user.id, email:user.email, firstName:user.first_name, lastName:user.last_name, role:user.role}; }
 function productResponse(row) { return {...row, price:Number(row.price), compareAtPrice:row.compare_at_price === null ? null : Number(row.compare_at_price), rating:Number(row.rating), reviewCount:Number(row.review_count), media:row.media || [], attributes:row.attributes || {}}; }
@@ -369,7 +386,7 @@ app.post('/api/orders/:id/shipments', requireAuth, asyncRoute(async (req, res) =
   const connector = await resolveConnector(req.context, 'fulfillment', req.body.connectorKey);
   const provider = await executeConnector({connector,operation:'createShipment',context:req.context,payload:{order:order.rows[0],items:items.rows,request:req.body}});
   const shipment = await withTenant(req.context.tenantId, async client => {
-    const inserted = await client.query(`insert into shipments (tenant_id,order_id,carrier,tracking_number,status,events) values ($1,$2,$3,$4,$5,$6) returning id,carrier,tracking_number as "trackingNumber",status,events,created_at as "createdAt",updated_at as "updatedAt"`, [req.context.tenantId, req.params.id, provider.carrier || null, provider.trackingNumber || null, provider.status || 'label_created', [{type:'label_created',at:new Date().toISOString()}]]);
+    const inserted = await client.query(`insert into shipments (tenant_id,order_id,carrier,tracking_number,status,events) values ($1,$2,$3,$4,$5,$6) returning id,carrier,tracking_number as "trackingNumber",status,events,created_at as "createdAt",updated_at as "updatedAt"`, [req.context.tenantId, req.params.id, provider.carrier || null, provider.trackingNumber || null, provider.status || 'label_created', JSON.stringify([{type:'label_created',at:new Date().toISOString()}])]);
     await client.query(`update orders set status = 'processing' where id = $1 and status = 'paid'`, [req.params.id]);
     await client.query(`insert into outbox_events (tenant_id,universe_id,event_type,aggregate_type,aggregate_id,payload) values ($1,$2,'shipment.created','shipment',$3,$4)`, [req.context.tenantId, req.context.universeId, inserted.rows[0].id, {shipmentId:inserted.rows[0].id,orderId:req.params.id}]);
     return inserted.rows[0];

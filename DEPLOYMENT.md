@@ -20,6 +20,8 @@ CORS_ORIGIN=https://store.example.com
 
 Optional runtime settings are documented in `.env.example`.
 
+The platform exposes Prometheus-compatible metrics at `/api/metrics`; set `METRICS_TOKEN` to protect the endpoint. Requests are rate-limited by client address using `RATE_LIMIT_WINDOW_MS` and `RATE_LIMIT_MAX`. Provider webhooks are accepted at `/api/webhooks/:serviceType/:connectorKey`, require HMAC signatures by default, and are deduplicated by event ID before entering the durable event/outbox pipeline.
+
 ## Build and migrate
 
 ```bash
